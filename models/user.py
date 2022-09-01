@@ -2,6 +2,7 @@ from sqlalchemy import text
 from sqlalchemy.sql.schema import Column
 from sqlalchemy.types import Integer,String,DateTime, Text
 from models.base import Base
+from db import db_session
 
 class User(Base):
     __tablename__ = 'user_details'

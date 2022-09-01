@@ -3,14 +3,23 @@ import graphene
 from graphene import relay
 from graphene_sqlalchemy import SQLAlchemyObjectType, SQLAlchemyConnectionField
 from models.user import  User as UserModel
+from dao.user_dao import UserDAO
 from db import db_session
 from sqlalchemy import update
 
+class CustomNode(graphene.Node):
+    class Meta:
+        name = 'MyNode'
+
+    @staticmethod
+    def to_global_id(type, id):
+        return id
 
 class UserSchema(SQLAlchemyObjectType):
     class Meta:
         model = UserModel
-        interfaces = (relay.Node, )
+        interfaces = (CustomNode, )
+
 
 class UserInput(graphene.InputObjectType):
     id = graphene.Int()
@@ -20,8 +29,12 @@ class UserInput(graphene.InputObjectType):
 
 class Query(graphene.ObjectType):
     node = relay.Node.Field()
-    # Allows sorting over multiple columns, by default over the primary key
     all_users = SQLAlchemyConnectionField(UserSchema.connection)
+    single_user = graphene.Field(UserSchema, id=graphene.ID(required=True))
+
+    def resolve_single_user(root, info, id):
+       return UserDAO.get_user_by_id(id)
+
 
 class AddUser(graphene.Mutation):
     class Arguments:
