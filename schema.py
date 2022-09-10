@@ -1,11 +1,12 @@
 # flask_sqlalchemy/schema.py
+from email import message
 import graphene
 from graphene import relay
 from graphene_sqlalchemy import SQLAlchemyObjectType, SQLAlchemyConnectionField
 from models.user import  User as UserModel
 from dao.user_dao import UserDAO
 from db import db_session
-from sqlalchemy import update
+from graphql import GraphQLError
 
 class CustomNode(graphene.Node):
     class Meta:
@@ -22,7 +23,7 @@ class UserSchema(SQLAlchemyObjectType):
 
 
 class UserInput(graphene.InputObjectType):
-    id = graphene.Int()
+    id = graphene.ID()
     name = graphene.String()
     address = graphene.String()
     phone = graphene.String()
@@ -41,32 +42,26 @@ class AddUser(graphene.Mutation):
         name = graphene.String(required=True)
         address = graphene.String(required=True)
         phone = graphene.String(required=True)
+    ok = graphene.Boolean()
     user = graphene.Field(lambda: UserSchema)
+    message = graphene.String()
 
     def mutate(self, info, name, address, phone):
-        user = UserModel(
-            name= name,
-            address=address,
-            phone=phone
-        )
-
-        db_session.add(user)
-        db_session.commit()
-
-        return AddUser(user=user)
+        user, ok, message = UserDAO.add_user(name, address, phone)
+        return AddUser(user=user, ok=ok, message=message)
 
 class DeleteUser(graphene.Mutation):
     ok = graphene.Boolean()
+    message = graphene.String()
 
     class Arguments:
         id = graphene.ID()
 
     @classmethod
     def mutate(cls, root, info, id):
-        obj = UserModel.query.filter_by(id=id).one()
-        db_session.delete(obj)
-        db_session.commit()
-        return cls(ok=True)
+        ok,message = UserDAO.delete_user(id)
+        return cls(ok=ok, message=message)
+            
 
 class UpdateUser(graphene.Mutation):
     ok = graphene.Boolean()
@@ -75,26 +70,16 @@ class UpdateUser(graphene.Mutation):
         id = graphene.ID()
         input = UserInput(required=True)
     user = graphene.Field(lambda: UserSchema)
+    message = graphene.String()
 
     @classmethod
     def mutate(cls, root, info, id, input=None):
-        u = update(UserModel)
-        if input.name is not None:
-            u = u.values({"name": input.name})
-        if input.address is not None:
-            u = u.values({"address": input.address})
-        if input.phone is not None:
-            u = u.values({"phone": input.phone})
-
-        u = u.where(UserModel.id == id)
-        db_session.execute(u)
-        db_session.commit()
-        return cls(ok=True)
-
+        user, ok, message = UserDAO.update_user(id, input)
+        return cls(user=user, ok=ok, message=message)
 
    
 class Mutation(graphene.ObjectType):
-    mutate_user = AddUser.Field()
+    add_user = AddUser.Field()
     delete_user = DeleteUser.Field()
     update_user = UpdateUser.Field()
 
