@@ -3,7 +3,7 @@ from schema import schema
 def all_users(limit):
     q = """
         query q {
-            result:allUsers {
+            result:allUsers(sort: TIME_MODIFIED_DESC) {
                 edges {
                     node {
                         id
@@ -74,7 +74,7 @@ def update_user(data):
 
     return result.data
 
-def delete_user(id):
+def delete_user(data):
     result = schema.execute(
         """
             mutation deleteUser($id: ID!){
@@ -84,7 +84,7 @@ def delete_user(id):
                 }
             }
         """,
-        variable_values={"id": id},
+        variable_values={"id": data['id']},
     )
 
     return result.data
